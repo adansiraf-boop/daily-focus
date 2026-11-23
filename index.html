@@ -76,7 +76,11 @@ a.btn{display:block}.hero .btn{margin-top:0}
 .sh,.it,input,select,textarea,nav,.pill{transition:background-color .25s,border-color .25s}
 :root{--bg:#fff;--r1:#cfe2ff;--r2:#e4eeff;--card:rgba(255,255,255,.75);--solid:#fff;--soft:#eaf0fb;--soft2:#f5f8ff;--inp:#f7faff;--navbg:rgba(255,255,255,.82);--bd:#c9d7ee;--ntbg:#eaf2ff;--ntc:#0b2a6b;--chbg:#fff1e6;--chc:#c2570c;--wbg:#fff1ee;--wc:#b42318}
 :root[data-theme=dark]{color-scheme:dark;--ink:#e6edfb;--mut:#9aa9c8;--a1:#4d8dff;--a2:#8fb4ff;--ln:#1e2c4a;--bg:#071022;--r1:#11306b;--r2:#0b1d42;--card:rgba(18,32,62,.72);--solid:#0f1b36;--soft:#182848;--soft2:#1d2f54;--inp:#0c172e;--navbg:rgba(9,18,38,.85);--bd:#2c3e66;--ntbg:#14284f;--ntc:#b9d1ff;--chbg:#3a2412;--chc:#ffb27a;--wbg:#3a1a1a;--wc:#ff9b8f}
-.pl{display:flex;gap:6px}
+.pl{display:flex;gap:8px}
+.ib{position:relative;width:40px;height:40px;border-radius:13px;border:1px solid var(--ln);background:var(--card);color:var(--ink);display:flex;align-items:center;justify-content:center;padding:0;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.ib svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.ib i{position:absolute;top:7px;right:7px;width:9px;height:9px;border-radius:50%;background:#22c55e;border:2px solid var(--solid)}.ib i.w{background:#f59e0b}
+.sp svg{animation:rot 1s linear infinite}@keyframes rot{to{transform:rotate(360deg)}}
 .rg{position:relative;width:220px;height:220px;margin:0 auto 18px}.rg svg{width:100%;height:100%;transform:rotate(-90deg)}
 .r0{fill:none;stroke:var(--soft);stroke-width:12}.r1{fill:none;stroke:var(--a1);stroke-width:12;stroke-linecap:round;stroke-dasharray:565.5;transition:stroke-dashoffset .5s linear}
 #ft{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:46px;font-weight:700;font-variant-numeric:tabular-nums}
@@ -140,7 +144,6 @@ const mins=d=>act(d).reduce((s,a)=>s+(+a.durasi_menit||0),0);
 const cap=()=>+set('batas_beban_menit',480)||480;
 
 /* ---- tampilan ---- */
-const pill0=()=>`<button class="pill" data-act="sy">${syncing?'Menyinkronkan…':!navigator.onLine?'Offline':queue.length?queue.length+' menunggu':'Tersinkron'}</button>`;
 const sk=()=>'<div class="sk"></div><div class="sk"></div><div class="sk"></div>';
 const item=a=>{const d=a.status==='selesai';return `<div class="it ${d?'done':''}"><button class="ck" data-act="tg" data-id="${a.id}" aria-label="Tandai selesai">${d?'✓':''}</button><div class="bd" data-act="ed" data-id="${a.id}"><b>${esc(a.judul)}</b><small>${[a.jam_mulai,a.durasi_menit?a.durasi_menit+' menit':'',a.tipe].filter(Boolean).join(' · ')} ${a.sumber==='mendadak'?'<i class="bg">Mendadak'+(a.pemberi_tugas?' · '+esc(a.pemberi_tugas):'')+'</i>':''}</small></div></div>`};
 const empty=(t,s)=>`<div class="em"><b>${t}</b>${s}</div>`;
@@ -154,7 +157,7 @@ function vToday(){
   if(m>c)nt=`<div class="nt warn">Hari ini terlalu padat (${m} dari ${c} menit). Pindahkan tugas yang kurang penting ke besok.</div>`;
   else if(m<c*.3)nt=`<div class="nt">Hari ini masih longgar. Isi dengan tugas tertunda atau belajar satu hal baru.</div>`;
   const wait=!loaded()&&syncing;
-  return `<div class="hd"><b>Daily Focus</b><span>${pill()} <button class="pill" data-act="st">Atur</button></span></div>
+  return `<div class="hd"><b>Daily Focus</b>${pill()}</div>
   <div class="hero"><h1>${hi}</h1><p>${fmt(t,{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p><div class="bar"><i style="width:${pct}%"></i></div><small>${done} dari ${L.length} tugas selesai${m?' · '+m+' menit terencana':''}</small></div>${fcard()}${wait?'':nt}
   ${wait?sk():`<h2>Prioritas utama</h2>${pri.length?pri.map(item).join(''):empty('Belum ada prioritas','Tandai sampai 3 tugas sebagai prioritas utama.')}
   <h2>Tugas lain</h2>${rest.length?rest.map(item).join(''):empty('Belum ada tugas lain','Tekan + untuk menambah tugas hari ini.')}
@@ -318,7 +321,9 @@ Object.assign(A,{
     w.document.close();setTimeout(()=>w.print(),400)}
 });
 
-const pill=()=>`<span class="pl"><button class="pill" data-act="sr">Cari</button>${pill0()}</span>`;
+const IC=(d,l,a,c='',dot='')=>`<button class="ib ${c}" data-act="${a}" aria-label="${l}" title="${l}"><svg viewBox="0 0 24 24">${d}</svg>${dot}</button>`;
+const pill=()=>{const off=!navigator.onLine,l=syncing?'Menyinkronkan…':off?'Offline':queue.length?queue.length+' perubahan menunggu':'Tersinkron';
+  return `<span class="pl">${IC('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>','Cari','sr')}${IC(off?'<path d="M2 2l20 20M5.6 9.5A8 8 0 0112 7c2.4 0 4.5 1 6 2.7M8.5 13.5a5 5 0 017 0M12 18h.01"/>':'<path d="M20 11a8 8 0 00-14.9-3M4 5v4h4M4 13a8 8 0 0014.9 3M20 19v-4h-4"/>',l+' (ketuk untuk sinkron)','sy',syncing?'sp':'',!syncing&&!off?`<i class="${queue.length?'w':''}"></i>`:'')}${IC('<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>','Pengaturan','st')}</span>`};
 /* ---- pencarian ---- */
 const SR={Agenda:['judul','catatan','pemberi_tugas'],LCKH:['uraian_kegiatan','output_hasil','keterangan'],Daftar:['item','catatan'],Diary:['isi','tag'],Notes:['poin_1','poin_2','poin_3','aksi_nyata'],LearningQueue:['judul','channel','topik']};
 const SN={Agenda:'Agenda',LCKH:'LCKH',Daftar:'Daftar',Diary:'Diary',Notes:'Catatan ilmu',LearningQueue:'Belajar'};
