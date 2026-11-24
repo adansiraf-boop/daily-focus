@@ -91,6 +91,14 @@ a.btn{display:block}.hero .btn{margin-top:0}
 .ck{width:22px;height:22px;border-width:1.5px;font-size:12px;line-height:1;padding:0}
 .bd b{font-size:15px}.bd small{font-size:13px}
 .mv{padding:7px 12px;font-size:13px}
+.dv{position:fixed;inset:0;z-index:30;background:rgba(11,27,58,.45);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px;animation:fd .2s}
+.dg{width:100%;max-width:340px;background:var(--solid);border:1px solid var(--ln);border-radius:26px;padding:24px 20px 18px;text-align:center;box-shadow:0 24px 60px -16px rgba(11,42,107,.5);animation:pop .25s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes pop{from{opacity:0;transform:scale(.9)}}
+.di{width:54px;height:54px;margin:0 auto 12px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--ntbg);color:var(--a1)}
+.di.d{background:var(--wbg);color:var(--wc)}
+.di svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.dg h3{margin:0 0 6px;font-size:18px}.dg p{margin:0 0 18px;color:var(--mut);font-size:14px;line-height:1.5}
+.dr{display:flex;gap:10px}.dr .btn{margin:0}.btn.dd{background:#e5484d;color:#fff}
 </style></head>
 <body>
 <main id="main"></main>
@@ -102,7 +110,7 @@ a.btn{display:block}.hero .btn{margin-top:0}
 <button data-act="nav" data-tab="jurnal"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4"/></svg>Jurnal</button>
 <button data-act="nav" data-tab="daftar"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>Daftar</button>
 </nav>
-<div id="sheet"></div><div id="toast"></div>
+<div id="sheet"></div><div id="toast"></div><div id="dlg"></div>
 <script>
 const $=s=>document.querySelector(s),LS=k=>localStorage.getItem(k);
 const TM={auto:'Otomatis',light:'Terang',dark:'Gelap'};
@@ -230,7 +238,7 @@ const A={
     closeSheet();if(tab==='agenda'){selDate=tgl;wk=mon(tgl)}upsert('Agenda',r);
   },
   mv(){const a=sheetRow,t=addD(a.tanggal>today()?a.tanggal:today(),1);closeSheet();upsert('Agenda',{...a,tanggal:t,pindah_dari:a.tanggal});toast('Dipindah ke '+fmt(t,{weekday:'long',day:'numeric',month:'short'}))},
-  dl(){if(confirm('Hapus tugas ini?')){const id=sheetRow.id;closeSheet();del('Agenda',id)}},
+  
   async cn(){
     const c={url:$('#c_url').value.trim(),token:$('#c_tok').value.trim()};
     if(!c.url||!c.token){toast('Isi URL dan token');return}
@@ -320,7 +328,7 @@ Object.assign(A,{
     closeSheet();upsert(sh,r);
     if(sh==='Notes'){const q=db.LearningQueue.find(x=>x.id===r.learning_id);if(q)upsert('LearningQueue',{...q,status:'ditonton',tanggal_selesai:today(),channel:r._src&&r._src[0]!=='('?r._src:q.channel});pick=null;toast('Catatan ilmu tersimpan')}
   },
-  df(){if(confirm('Hapus data ini?')){const{sh,id}=fm;closeSheet();del(sh,id)}},
+  
   li(){const c=cand();c.forEach((a,i)=>{let e='';if(a.jam_mulai&&a.durasi_menit){const[h,m]=a.jam_mulai.split(':').map(Number),t=h*60+m+ +a.durasi_menit;e=pad(Math.floor(t/60)%24)+':'+pad(t%60)}
     upsert('LCKH',{id:'l'+Date.now().toString(36)+i,tanggal:a.tanggal,jam_mulai:a.jam_mulai,jam_selesai:e,uraian_kegiatan:a.judul,output_hasil:'',volume:'1',satuan:'kegiatan',bukti_link:'',keterangan:a.sumber==='mendadak'?'Tugas mendadak'+(a.pemberi_tugas?' dari '+a.pemberi_tugas:''):'',agenda_id:a.id,status:'draft',created_at:new Date().toISOString()})});
     toast('Masuk ke catatan kerja. Lengkapi output hasilnya.')},
@@ -373,7 +381,7 @@ Object.assign(A,{
     const L=act(today()).filter(a=>a.status==='todo');
     $('#sheet').innerHTML=`<div class="ov" data-act="cl"><div class="sh"><h2 style="margin-top:0">Mulai fokus</h2><label>Tugas</label><select id="fk_t"><option value="">Fokus bebas</option>${L.map(a=>`<option value="${a.id}">${esc(a.judul)}</option>`).join('')}</select><label>Durasi</label><select id="fk_d">${[15,25,45,60,90].map(m=>`<option value="${m}" ${m===25?'selected':''}>${m} menit</option>`).join('')}</select><button class="btn" data-act="fgo">Mulai</button></div></div>`},
   fgo(){const id=$('#fk_t').value,a=id?byId(id):null,d=+$('#fk_d').value;focus={id,label:a?a.judul:'Fokus bebas',dur:d,end:Date.now()+d*60000,done:false};putF();getWL();showFocus()},
-  fx(){if(confirm('Batalkan sesi fokus?'))A.fc2()},
+  
   fd(){const a=byId(focus.id);if(a&&a.status!=='selesai')upsert('Agenda',{...a,status:'selesai',tanggal_selesai:today()});A.fc2()},
   fb5(){focus={id:'',label:'Istirahat',dur:5,end:Date.now()+300000,done:false,brk:1};putF();getWL();showFocus()},
   fc2(){clearInterval(tm);relWL();focus=null;putF();closeSheet();render()}
@@ -399,6 +407,22 @@ Object.assign(A,{
     const o=src.filter(x=>x.id!==pick),arr=o.length?o:src;pick=arr[Math.random()*arr.length|0].id;render()},
   wl(){openForm('Notes',null,{tanggal:today(),learning_id:''})},
   jd(t){const x=db.Daftar.find(y=>y.id===t.dataset.id);pendD=x.id;openSheet();$('#f_judul').value=x.item;$('#f_tgl').value=addD(today(),1)}
+});
+
+/* ---- dialog konfirmasi bergaya aplikasi ---- */
+function ask(t,m,ok='Ya',danger=false){return new Promise(res=>{
+  const el=$('#dlg'),kd=e=>{if(e.key==='Escape')done(false)},done=v=>{el.innerHTML='';el.onclick=null;document.removeEventListener('keydown',kd);res(v)};
+  const ic=danger?'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3"/>':'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 114 2c-.8.6-1.5 1-1.5 2M12 17h.01"/>';
+  el.innerHTML=`<div class="dv"><div class="dg" role="alertdialog" aria-modal="true" aria-labelledby="dgt"><div class="di ${danger?'d':''}"><svg viewBox="0 0 24 24">${ic}</svg></div><h3 id="dgt">${esc(t)}</h3><p>${m}</p><div class="dr"><button class="btn l" data-d="0">Batal</button><button class="btn ${danger?'dd':''}" data-d="1">${esc(ok)}</button></div></div></div>`;
+  el.onclick=e=>{const b=e.target.closest('[data-d]');if(b)done(b.dataset.d==='1');else if(e.target.classList.contains('dv'))done(false)};
+  document.addEventListener('keydown',kd);setTimeout(()=>{const b=el.querySelector('[data-d="0"]');b&&b.focus()},60)})}
+const li0=A.li;
+Object.assign(A,{
+  async li(){const n=cand().length;if(await ask('Ambil ke catatan kerja?',n+' tugas kerja yang sudah selesai akan ditambahkan ke catatan kerja bulan ini.','Ya, ambil'))li0()},
+  async fx(){if(await ask('Batalkan sesi fokus?','Waktu yang sudah berjalan tidak akan dicatat.','Ya, batalkan',true))A.fc2()},
+  async dl(){const a=sheetRow;if(await ask('Hapus tugas?','“'+esc(a.judul).slice(0,60)+'” akan dihapus permanen dari aplikasi dan Google Sheets.','Hapus',true)){closeSheet();del('Agenda',a.id)}},
+  async df(){const{sh,id,row}=fm,nm=(sh==='Diary'||sh==='DailyReview')?'catatan tanggal '+fmt(id,{day:'numeric',month:'long'}):String(row&&row[F[sh].req]||'data ini').slice(0,60);
+    if(await ask('Hapus data?','“'+esc(nm)+'” akan dihapus permanen dari aplikasi dan Google Sheets.','Hapus',true)){closeSheet();del(sh,id)}}
 });
 
 document.addEventListener('click',e=>{
