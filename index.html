@@ -99,6 +99,7 @@ a.btn{display:block}.hero .btn{margin-top:0}
 .di svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .dg h3{margin:0 0 6px;font-size:18px}.dg p{margin:0 0 18px;color:var(--mut);font-size:14px;line-height:1.5}
 .dr{display:flex;gap:10px}.dr .btn{margin:0}.btn.dd{background:#e5484d;color:#fff}
+.ck.lk{opacity:.5;cursor:default}
 </style></head>
 <body>
 <main id="main"></main>
@@ -160,7 +161,7 @@ const cap=()=>+set('batas_beban_menit',480)||480;
 
 /* ---- tampilan ---- */
 const sk=()=>'<div class="sk"></div><div class="sk"></div><div class="sk"></div>';
-const item=a=>{const d=a.status==='selesai';return `<div class="it ${d?'done':''}"><button class="ck" data-act="tg" data-id="${a.id}" aria-label="Tandai selesai">${d?'✓':''}</button><div class="bd" data-act="ed" data-id="${a.id}"><b>${esc(a.judul)}</b><small>${[a.jam_mulai,a.durasi_menit?a.durasi_menit+' menit':'',a.tipe].filter(Boolean).join(' · ')} ${a.sumber==='mendadak'?'<i class="bg">Mendadak'+(a.pemberi_tugas?' · '+esc(a.pemberi_tugas):'')+'</i>':''}</small></div></div>`};
+const item=a=>{const d=a.status==='selesai',lk=d&&(a.tanggal_selesai||a.tanggal)<today();return `<div class="it ${d?'done':''}"><button class="ck${lk?' lk':''}" data-act="tg" data-id="${a.id}" aria-label="${lk?'Terkunci':'Tandai selesai'}">${d?'✓':''}</button><div class="bd" data-act="ed" data-id="${a.id}"><b>${esc(a.judul)}</b><small>${[a.jam_mulai,a.durasi_menit?a.durasi_menit+' menit':'',a.tipe].filter(Boolean).join(' · ')} ${a.sumber==='mendadak'?'<i class="bg">Mendadak'+(a.pemberi_tugas?' · '+esc(a.pemberi_tugas):'')+'</i>':''}</small></div></div>`};
 const empty=(t,s)=>`<div class="em"><b>${t}</b>${s}</div>`;
 
 function vToday(){
@@ -176,7 +177,7 @@ function vToday(){
   <div class="hero"><h1>${hi}</h1><p>${fmt(t,{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p><div class="bar"><i style="width:${pct}%"></i></div><small>${done} dari ${L.length} tugas selesai${m?' · '+m+' menit terencana':''}</small></div>${fcard()}${wait?'':nt}
   ${wait?sk():`<h2>Prioritas utama</h2>${pri.length?pri.map(item).join(''):empty('Belum ada prioritas','Tandai sampai 3 tugas sebagai prioritas utama.')}
   <h2>Tugas lain</h2>${rest.length?rest.map(item).join(''):empty('Belum ada tugas lain','Tekan + untuk menambah tugas hari ini.')}
-  ${od.length?`<h2>Tertunda dari hari sebelumnya</h2>${od.map(a=>`<div class="it"><div class="bd" data-act="ed" data-id="${a.id}"><b>${esc(a.judul)}</b><small>${fmt(a.tanggal,{day:'numeric',month:'short'})}</small></div><button class="mv" data-act="mt" data-id="${a.id}">Pindah ke hari ini</button></div>`).join('')}`:''}`}`;
+  ${od.length?`<h2>Tertunda dari hari sebelumnya</h2>${od.map(a=>`<div class="it"><button class="ck" data-act="tt" data-id="${a.id}" aria-label="Tandai selesai"></button><div class="bd" data-act="ed" data-id="${a.id}"><b>${esc(a.judul)}</b><small>${fmt(a.tanggal,{day:'numeric',month:'short'})}</small></div><button class="mv" data-act="mt" data-id="${a.id}">Pindah ke hari ini</button></div>`).join('')}`:''}`}`;
 }
 function vAgenda(){
   const names=['Sen','Sel','Rab','Kam','Jum','Sab','Min'],L=act(selDate);let d7='';
@@ -214,7 +215,7 @@ function openSheet(id){
   <label class="chk"><input id="f_mdk" type="checkbox" ${md?'checked':''} onchange="document.getElementById('f_ptw').hidden=!this.checked">Kerjaan mendadak</label>
   <div id="f_ptw" ${md?'':'hidden'}><label>Pemberi tugas</label><input id="f_pt" value="${v('pemberi_tugas')}" placeholder="Mis. Kabid, Atasan"></div>
   <button class="btn" data-act="sv">Simpan</button>
-  ${r?'<button class="btn l" data-act="mv">Pindah ke besok</button><button class="btn r" data-act="dl">Hapus</button>':''}</div></div>`;
+  ${r?(r.status==='selesai'?'':'<button class="btn l" data-act="mv">Pindah ke besok</button>')+'<button class="btn r" data-act="dl">Hapus</button>':''}</div></div>`;
   if(!r)setTimeout(()=>$('#f_judul').focus(),300);
 }
 const closeSheet=()=>{$('#sheet').innerHTML='';sheetRow=null};
@@ -223,7 +224,7 @@ const byId=id=>db.Agenda.find(a=>a.id===id);
 const A={
   nav(t){tab=t.dataset.tab;render();scrollTo(0,0)},
   add(){tab==='today'||tab==='agenda'?openSheet():addOther()},ed(t){openSheet(t.dataset.id)},cl:closeSheet,sy:sync,
-  tg(t){const a=byId(t.dataset.id),d=a.status==='selesai';upsert('Agenda',{...a,status:d?'todo':'selesai',tanggal_selesai:d?'':today()})},
+  tg(t){const a=byId(t.dataset.id),d=a.status==='selesai';if(d&&(a.tanggal_selesai||a.tanggal)<today()){toast('Tugas dari hari yang sudah lewat terkunci');return}upsert('Agenda',{...a,status:d?'todo':'selesai',tanggal_selesai:d?'':today()})},
   mt(t){const a=byId(t.dataset.id);upsert('Agenda',{...a,tanggal:today(),pindah_dari:a.tanggal})},
   wp(){wk=addD(wk,-7);selDate=wk;render()},wn(){wk=addD(wk,7);selDate=wk;render()},
   sd(t){selDate=t.dataset.d;render()},
@@ -406,6 +407,7 @@ Object.assign(A,{
     const f=all.filter(x=>(x.prioritas==='berat')===(m==='berat')),src=f.length?f:all;if(!f.length)toast('Tidak ada topik '+(m==='berat'?'yang butuh fokus':'santai')+', ambil yang lain');
     const o=src.filter(x=>x.id!==pick),arr=o.length?o:src;pick=arr[Math.random()*arr.length|0].id;render()},
   wl(){openForm('Notes',null,{tanggal:today(),learning_id:''})},
+  tt(t){const a=byId(t.dataset.id);upsert('Agenda',{...a,tanggal:today(),pindah_dari:a.tanggal,status:'selesai',tanggal_selesai:today()});toast('Selesai. Dicatat sebagai pekerjaan hari ini')},
   jd(t){const x=db.Daftar.find(y=>y.id===t.dataset.id);pendD=x.id;openSheet();$('#f_judul').value=x.item;$('#f_tgl').value=addD(today(),1)}
 });
 
