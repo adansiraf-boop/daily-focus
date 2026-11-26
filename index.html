@@ -126,7 +126,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const fmt=(s,o)=>parse(s).toLocaleDateString('id-ID',o);
 
 let cfg=JSON.parse(LS('df_cfg')||'null'),db=JSON.parse(LS('df_db')||'{}'),queue=JSON.parse(LS('df_q')||'[]');
-const KEYS=['Agenda','LCKH','Daftar','Diary','DailyReview','LearningQueue','Notes','Habits','HabitLogs','FokusLog','Settings'],fixDb=()=>KEYS.forEach(k=>db[k]=db[k]||[]);fixDb();
+const KEYS=['Agenda','LCKH','Daftar','Diary','DailyReview','LearningQueue','Notes','Habits','HabitLogs','FokusLog','Rapat','Settings'],fixDb=()=>KEYS.forEach(k=>db[k]=db[k]||[]);fixDb();
 let tab='today',selDate=today(),wk=mon(today()),syncing=false,sheetRow=null;
 const loaded=()=>!!LS('df_db');
 const save=()=>{localStorage.setItem('df_db',JSON.stringify(db));localStorage.setItem('df_q',JSON.stringify(queue))};
@@ -161,7 +161,7 @@ const cap=()=>+set('batas_beban_menit',480)||480;
 
 /* ---- tampilan ---- */
 const sk=()=>'<div class="sk"></div><div class="sk"></div><div class="sk"></div>';
-const item=a=>{const d=a.status==='selesai',lk=d&&(a.tanggal_selesai||a.tanggal)<today();return `<div class="it ${d?'done':''}"><button class="ck${lk?' lk':''}" data-act="tg" data-id="${a.id}" aria-label="${lk?'Terkunci':'Tandai selesai'}">${d?'✓':''}</button><div class="bd" data-act="ed" data-id="${a.id}"><b>${esc(a.judul)}</b><small>${[a.jam_mulai,a.durasi_menit?a.durasi_menit+' menit':'',a.tipe].filter(Boolean).join(' · ')} ${a.sumber==='mendadak'?'<i class="bg">Mendadak'+(a.pemberi_tugas?' · '+esc(a.pemberi_tugas):'')+'</i>':''}</small></div></div>`};
+const item=a=>{const d=a.status==='selesai',lk=d&&isLocked(a);return `<div class="it ${d?'done':''}"><button class="ck${lk?' lk':''}" data-act="tg" data-id="${a.id}" aria-label="${lk?'Terkunci':'Tandai selesai'}">${d?'✓':''}</button><div class="bd" data-act="ed" data-id="${a.id}"><b>${esc(a.judul)}</b><small>${[a.jam_mulai,a.durasi_menit?a.durasi_menit+' menit':'',a.tipe].filter(Boolean).join(' · ')} ${a.sumber==='mendadak'?'<i class="bg">Mendadak'+(a.pemberi_tugas?' · '+esc(a.pemberi_tugas):'')+'</i>':''} ${a.tipe==='rapat'&&a.status==='selesai'&&!db.Rapat.some(x=>x.id===a.id)?'<i class="bg">Hasil belum diisi</i>':''}</small></div></div>`};
 const empty=(t,s)=>`<div class="em"><b>${t}</b>${s}</div>`;
 
 function vToday(){
@@ -206,16 +206,16 @@ function render(){
 function openSheet(id){
   const r=id?db.Agenda.find(a=>a.id===id):null;sheetRow=r;
   const v=k=>esc(r?r[k]:''),d=r?r.tanggal:(tab==='agenda'?selDate:today()),md=r&&r.sumber==='mendadak';
-  const ty=['kerja','belajar','pribadi','hiburan'].map(x=>`<option ${r&&r.tipe===x?'selected':''}>${x}</option>`).join('');
-  $('#sheet').innerHTML=`<div class="ov" data-act="cl"><div class="sh"><h2 style="margin-top:0">${r?'Ubah tugas':'Tugas baru'}</h2>
+  const ty=['kerja','rapat','belajar','pribadi','hiburan'].map(x=>`<option ${r&&r.tipe===x?'selected':''}>${x}</option>`).join('');
+  $('#sheet').innerHTML=`<div class="ov" data-act="cl"><div class="sh"><h2 style="margin-top:0">${r?'Ubah tugas':'Tugas baru'}</h2>${r&&r.status==='selesai'?'<p style="color:var(--mut);font-size:13px;margin:-4px 0 12px">Tugas yang sudah selesai tidak bisa dihapus atau dipindah tanggal. Isinya masih bisa diedit.</p>':''}
   <label>Judul</label><input id="f_judul" value="${v('judul')}" placeholder="Apa yang harus dikerjakan?">
-  <div class="row"><div><label>Tanggal</label><input id="f_tgl" type="date" value="${d}"></div><div><label>Jam</label><input id="f_jam" type="time" value="${v('jam_mulai')}"></div></div>
+  <div class="row"><div><label>Tanggal</label><input id="f_tgl" type="date" value="${d}" ${r&&r.status==='selesai'?'disabled':''}></div><div><label>Jam</label><input id="f_jam" type="time" value="${v('jam_mulai')}"></div></div>
   <div class="row"><div><label>Durasi (menit)</label><input id="f_dur" type="number" inputmode="numeric" value="${v('durasi_menit')}" placeholder="30"></div><div><label>Tipe</label><select id="f_tipe">${ty}</select></div></div>
   <label class="chk"><input id="f_utama" type="checkbox" ${r&&r.is_utama==='1'?'checked':''}>Prioritas utama (maks. 3 per hari)</label>
   <label class="chk"><input id="f_mdk" type="checkbox" ${md?'checked':''} onchange="document.getElementById('f_ptw').hidden=!this.checked">Kerjaan mendadak</label>
   <div id="f_ptw" ${md?'':'hidden'}><label>Pemberi tugas</label><input id="f_pt" value="${v('pemberi_tugas')}" placeholder="Mis. Kabid, Atasan"></div>
-  <button class="btn" data-act="sv">Simpan</button>
-  ${r?(r.status==='selesai'?'':'<button class="btn l" data-act="mv">Pindah ke besok</button>')+'<button class="btn r" data-act="dl">Hapus</button>':''}</div></div>`;
+  ${r&&r.tipe==='rapat'?'<button class="btn l" data-act="hr" data-id="'+r.id+'">'+(db.Rapat.some(x=>x.id===r.id)?'Lihat / ubah hasil rapat':'Isi hasil rapat')+'</button>':''}<button class="btn" data-act="sv">Simpan</button>
+  ${r&&r.status!=='selesai'?'<button class="btn l" data-act="mv">Pindah ke besok</button><button class="btn r" data-act="dl">Hapus</button>':''}</div></div>`;
   if(!r)setTimeout(()=>$('#f_judul').focus(),300);
 }
 const closeSheet=()=>{$('#sheet').innerHTML='';sheetRow=null};
@@ -230,7 +230,7 @@ const A={
   sd(t){selDate=t.dataset.d;render()},
   sv(){
     const j=$('#f_judul').value.trim();if(!j){toast('Judul wajib diisi');return}
-    const o=sheetRow,tgl=$('#f_tgl').value||today(),mdk=$('#f_mdk').checked;
+    const o=sheetRow,tgl=o&&o.status==='selesai'?o.tanggal:($('#f_tgl').value||today()),mdk=$('#f_mdk').checked;
     let ut=$('#f_utama').checked?'1':'0';
     if(ut==='1'&&act(tgl).filter(a=>a.is_utama==='1'&&(!o||a.id!==o.id)).length>=3){ut='0';toast('Maksimal 3 prioritas utama per hari')}
     const r={status:'todo',pindah_dari:'',tanggal_selesai:'',catatan:'',created_at:new Date().toISOString(),...(o||{}),
@@ -266,11 +266,11 @@ function openForm(sh,id,d={}){
     :t==='sel'?`<select id="g_${k}">${x.map(o=>`<option ${val(k)===o?'selected':''}>${o}</option>`).join('')}</select>`
     :`<input id="g_${k}" type="${t}" ${t==='number'?'inputmode="numeric"':''} value="${v||(!row&&x?esc(x):'')}">`;
     return `<label>${l}</label>${h}`};
-  $('#sheet').innerHTML=`<div class="ov" data-act="cl"><div class="sh"><h2 style="margin-top:0">${c.t}</h2>${c.f.map(inp).join('')}<button class="btn" data-act="sf">Simpan</button>${row&&sh!=='Settings'?'<button class="btn r" data-act="df">Hapus</button>':''}</div></div>`;
+  $('#sheet').innerHTML=`<div class="ov" data-act="cl"><div class="sh"><h2 style="margin-top:0">${c.t}</h2>${c.f.map(inp).join('')}<button class="btn" data-act="sf">Simpan</button>${row&&sh!=='Settings'&&sh!=='Rapat'?'<button class="btn r" data-act="df">Hapus</button>':''}</div></div>`;
 }
 const seg=(o,c,a)=>`<div class="sg">${o.map(([v,l])=>`<button class="${v===c?'on':''}" data-act="${a}" data-v="${v}">${l}</button>`).join('')}</div>`;
 const lckhM=()=>db.LCKH.filter(x=>(x.tanggal||'').startsWith(lm)).sort((a,b)=>(a.tanggal+a.jam_mulai).localeCompare(b.tanggal+b.jam_mulai));
-const cand=()=>db.Agenda.filter(a=>a.tipe==='kerja'&&a.status==='selesai'&&(a.tanggal||'').startsWith(lm)&&!db.LCKH.some(l=>l.agenda_id===a.id));
+const cand=()=>db.Agenda.filter(a=>(a.tipe==='kerja'||a.tipe==='rapat')&&a.status==='selesai'&&(a.tanggal||'').startsWith(lm)&&!db.LCKH.some(l=>l.agenda_id===a.id));
 const row2=(sh,x,t,s)=>`<div class="it" data-act="ef" data-sh="${sh}" data-id="${x.id}"><div class="bd"><b>${t}</b><small>${s}</small></div></div>`;
 
 function vJurnal(){
@@ -288,7 +288,7 @@ function vJurnal(){
     const L=[...db.DailyReview].sort((a,b)=>b.id.localeCompare(a.id));
     b=`<button class="btn" data-act="wr" style="margin-top:14px">${L.some(x=>x.id===today())?'Ubah review hari ini':'Review malam (2 menit)'}</button><h2>Sebelumnya</h2>${L.length?L.map(x=>row2('DailyReview',x,fmt(x.id,{weekday:'long',day:'numeric',month:'short'}),'Fokus '+esc(x.skor_fokus||'-')+'/10 · '+esc((x.ringkasan||'').slice(0,80)))).join(''):empty('Belum ada review','Review singkat tiap malam membantu menata besok.')}`;
   }
-  return `<div class="hd"><b>Jurnal</b>${pill()}</div>${seg([['lckh','Kerja'],['diary','Diary'],['review','Review']],jt,'sj')}${b}`;
+  return `<div class="hd"><b>Jurnal</b>${pill()}</div>${seg([['lckh','Kerja'],['diary','Diary'],['review','Review'],['rapat','Rapat']],jt,'sj')}${b}`;
 }
 function vBelajar(){
   const Q=db.LearningQueue.filter(x=>x.status==='antri'||!x.status),p=pick&&Q.find(x=>x.id===pick),N=[...db.Notes].sort((a,b)=>b.tanggal.localeCompare(a.tanggal)).slice(0,6);
@@ -331,7 +331,7 @@ Object.assign(A,{
   },
   
   li(){const c=cand();c.forEach((a,i)=>{let e='';if(a.jam_mulai&&a.durasi_menit){const[h,m]=a.jam_mulai.split(':').map(Number),t=h*60+m+ +a.durasi_menit;e=pad(Math.floor(t/60)%24)+':'+pad(t%60)}
-    upsert('LCKH',{id:'l'+Date.now().toString(36)+i,tanggal:a.tanggal,jam_mulai:a.jam_mulai,jam_selesai:e,uraian_kegiatan:a.judul,output_hasil:'',volume:'1',satuan:'kegiatan',bukti_link:'',keterangan:a.sumber==='mendadak'?'Tugas mendadak'+(a.pemberi_tugas?' dari '+a.pemberi_tugas:''):'',agenda_id:a.id,status:'draft',created_at:new Date().toISOString()})});
+    upsert('LCKH',{id:'l'+Date.now().toString(36)+i,tanggal:a.tanggal,jam_mulai:a.jam_mulai,jam_selesai:e,uraian_kegiatan:a.tipe==='rapat'?'Mengikuti rapat '+a.judul:a.judul,output_hasil:a.tipe==='rapat'?((db.Rapat.find(x=>x.id===a.id)||{}).keputusan||'').replace(/\n+/g,'; ').slice(0,200):'',volume:'1',satuan:'kegiatan',bukti_link:'',keterangan:a.sumber==='mendadak'?'Tugas mendadak'+(a.pemberi_tugas?' dari '+a.pemberi_tugas:''):'',agenda_id:a.id,status:'draft',created_at:new Date().toISOString()})});
     toast('Masuk ke catatan kerja. Lengkapi output hasilnya.')},
   lc(){
     const w=window.open('','_blank');if(!w){toast('Izinkan pop-up untuk mencetak');return}
@@ -425,6 +425,52 @@ Object.assign(A,{
   async dl(){const a=sheetRow;if(await ask('Hapus tugas?','“'+esc(a.judul).slice(0,60)+'” akan dihapus permanen dari aplikasi dan Google Sheets.','Hapus',true)){closeSheet();del('Agenda',a.id)}},
   async df(){const{sh,id,row}=fm,nm=(sh==='Diary'||sh==='DailyReview')?'catatan tanggal '+fmt(id,{day:'numeric',month:'long'}):String(row&&row[F[sh].req]||'data ini').slice(0,60);
     if(await ask('Hapus data?','“'+esc(nm)+'” akan dihapus permanen dari aplikasi dan Google Sheets.','Hapus',true)){closeSheet();del(sh,id)}}
+});
+
+/* ---- kunci riwayat: tugas selesai pada tanggal yang sudah lewat tidak bisa diubah statusnya ---- */
+const isLocked=a=>a.status==='selesai'&&(a.tanggal<today()||(a.tanggal_selesai||a.tanggal)<today());
+Object.assign(A,{
+  async tg(t){
+    const a=byId(t.dataset.id);if(!a)return;
+    if(isLocked(a)){toast('Tugas yang sudah selesai di hari lalu terkunci');return}
+    if(a.status!=='selesai'&&a.tanggal<today()&&!await ask('Tandai selesai?','Tugas tanggal '+fmt(a.tanggal,{day:'numeric',month:'long'})+' akan langsung terkunci dan tidak bisa dibatalkan.','Ya, selesai'))return;
+    const d=a.status==='selesai';upsert('Agenda',{...a,status:d?'todo':'selesai',tanggal_selesai:d?'':today()});
+  }
+});
+const dl1=A.dl;A.dl=()=>{if(sheetRow&&sheetRow.status==='selesai'){toast('Tugas yang sudah selesai tidak bisa dihapus');return}return dl1()};
+
+/* ---- rapat: hasil rapat, notulen, tindak lanjut ---- */
+SR.Rapat=['judul','poin_penting','keputusan','tindak_lanjut'];SN.Rapat='Rapat';
+F.Rapat={t:'Hasil rapat',req:'poin_penting',f:[['tempat','Tempat (opsional)','text'],['peserta','Peserta / pimpinan (opsional)','text'],['poin_penting','Poin penting yang dibahas','area'],['keputusan','Keputusan','area'],['tindak_lanjut','Tindak lanjut (satu baris satu hal)','area']]};
+const of0=openForm;
+openForm=function(sh,id,d){of0(sh,id,d);if(sh==='Rapat'){const b=$('#sheet .btn');b&&b.insertAdjacentHTML('afterend','<button class="btn l" data-act="rt">Jadikan tindak lanjut sebagai tugas</button><button class="btn l" data-act="rs">Salin notulen</button>')}};
+function tlSheet(rid){
+  const r=db.Rapat.find(x=>x.id===rid),L=((r&&r.tindak_lanjut)||'').split('\n').map(x=>x.trim()).filter(x=>x&&!x.startsWith('✓'));
+  if(!L.length){toast('Tidak ada tindak lanjut yang belum dijadwalkan');return}
+  $('#sheet').innerHTML=`<div class="ov" data-act="cl"><div class="sh"><h2 style="margin-top:0">Jadikan tugas</h2><p style="color:var(--mut);font-size:13px;margin:-4px 0 12px">Pilih tindak lanjut dan tanggalnya.</p>${L.map((x,i)=>`<label class="chk"><input id="tc${i}" type="checkbox" checked>${esc(x)}</label><input id="td${i}" type="date" value="${addD(today(),1)}">`).join('')}<button class="btn" data-act="tb" data-id="${rid}">Buat tugas</button></div></div>`;
+}
+const vj0=vJurnal;
+vJurnal=function(){
+  if(jt!=='rapat')return vj0();
+  const W=db.Agenda.filter(a=>a.tipe==='rapat'&&a.status==='selesai'&&!db.Rapat.some(r=>r.id===a.id)),L=[...db.Rapat].sort((a,b)=>b.tanggal.localeCompare(a.tanggal));
+  return `<div class="hd"><b>Jurnal</b>${pill()}</div>${seg([['lckh','Kerja'],['diary','Diary'],['review','Review'],['rapat','Rapat']],jt,'sj')}
+  ${W.length?`<h2>Menunggu hasil (${W.length})</h2>${W.map(a=>`<div class="it" data-act="hr" data-id="${a.id}"><div class="bd"><b>${esc(a.judul)}</b><small>${fmt(a.tanggal,{day:'numeric',month:'short'})} · ketuk untuk isi hasil rapat</small></div></div>`).join('')}`:''}
+  <h2>Riwayat rapat</h2>${L.length?L.map(x=>row2('Rapat',x,esc(x.judul),fmt(x.tanggal,{day:'numeric',month:'short'})+' · '+esc((x.keputusan||x.poin_penting||'').replace(/\n+/g,'; ').slice(0,70)))).join(''):empty('Belum ada hasil rapat','Tandai agenda bertipe rapat, lalu isi hasilnya.')}`;
+};
+Object.assign(A,{
+  hr(t){const a=byId(t.dataset.id);if(!a)return;closeSheet();openForm('Rapat',a.id,{agenda_id:a.id,tanggal:a.tanggal,judul:a.judul})},
+  rt(){const id=fm.id;A.sf();if($('#sheet').innerHTML)return;tlSheet(id)},
+  rs(){const b=fm.row||fm.d,g=k=>(($('#g_'+k)||{}).value||'').trim(),t=['NOTULEN RAPAT',b.judul,fmt(b.tanggal,{weekday:'long',day:'numeric',month:'long',year:'numeric'})+(g('tempat')?' · '+g('tempat'):'')];
+    if(g('peserta'))t.push('Peserta: '+g('peserta'));
+    [['POIN PENTING','poin_penting'],['KEPUTUSAN','keputusan'],['TINDAK LANJUT','tindak_lanjut']].forEach(([h,k])=>{if(g(k))t.push('',h,g(k))});
+    navigator.clipboard.writeText(t.join('\n')).then(()=>toast('Notulen disalin'),()=>toast('Gagal menyalin'))},
+  tb(t){
+    const r=db.Rapat.find(x=>x.id===t.dataset.id),raw=(r.tindak_lanjut||'').split('\n'),L=raw.map(x=>x.trim()).filter(x=>x&&!x.startsWith('✓')),made=new Set();
+    L.forEach((x,i)=>{if(!$('#tc'+i).checked)return;made.add(x);
+      upsert('Agenda',{id:'a'+Date.now().toString(36)+i,tanggal:$('#td'+i).value||addD(today(),1),jam_mulai:'',durasi_menit:'',judul:x,tipe:'kerja',prioritas:'biasa',is_utama:'0',status:'todo',pindah_dari:'',tanggal_selesai:'',catatan:'Tindak lanjut rapat: '+r.judul,sumber:'rencana',pemberi_tugas:'',created_at:new Date().toISOString()})});
+    if(!made.size){toast('Pilih minimal satu');return}
+    upsert('Rapat',{...r,tindak_lanjut:raw.map(x=>made.has(x.trim())?'✓ '+x.trim():x).join('\n')});closeSheet();toast(made.size+' tugas dibuat');
+  }
 });
 
 document.addEventListener('click',e=>{
